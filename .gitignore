@@ -1,0 +1,21 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Local tooling state (contains machine-local paths and command allowlists)
+.claude/
+
+# Legacy AI Studio Firebase config (superseded by VITE_FIREBASE_* env vars)
+firebase-applet-config.json
+
+# AI Studio leftovers (not needed for the open-source project)
+metadata.json
+assets/.aistudio/
+
+# Author-only notes — never publish
+GITHUB_UPLOAD_GUIDE_zh.md
