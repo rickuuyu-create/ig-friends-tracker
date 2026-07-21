@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.2] - 2026-07-22
+
+### Fixed
+
+- The IGPorter link is now always visible, even before a username is entered
+- Simplified the avatar instructions in English and Traditional Chinese
+
 ## [1.1.1] - 2026-07-22
 
 ### Changed

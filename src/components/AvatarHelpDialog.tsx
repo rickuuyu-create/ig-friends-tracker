@@ -40,11 +40,6 @@ export default function AvatarHelpDialog({ open, onClose, username }: AvatarHelp
     }
   };
 
-  const openDownloader = () => {
-    void copyUsername();
-    window.open(PROFILE_PHOTO_DOWNLOADER_URL, '_blank', 'noopener,noreferrer');
-  };
-
   return createPortal(
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4" role="presentation" onMouseDown={onClose}>
       <section
@@ -90,8 +85,8 @@ export default function AvatarHelpDialog({ open, onClose, username }: AvatarHelp
             })}
           </ol>
 
-          {handle ? (
-            <div className="space-y-2.5">
+          <div className="space-y-2.5">
+            {handle && (
               <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2">
                 <span className="min-w-0 flex-1 truncate px-2 text-sm font-semibold text-gray-800">@{handle}</span>
                 <button
@@ -103,20 +98,22 @@ export default function AvatarHelpDialog({ open, onClose, username }: AvatarHelp
                   {copied ? t('avatar.copied') : t('avatar.copyUsername')}
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={openDownloader}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
-              >
-                <ImageDown className="h-4 w-4" />
-                {t('avatar.openDownloader')}
-                <ExternalLink className="h-4 w-4" />
-              </button>
-              <p className="text-center text-xs text-gray-500">{t('avatar.copyAndOpenHint')}</p>
-            </div>
-          ) : (
-            <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-800">{t('avatar.usernameNeeded')}</p>
-          )}
+            )}
+            <a
+              href={PROFILE_PHOTO_DOWNLOADER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => handle && void copyUsername()}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
+            >
+              <ImageDown className="h-4 w-4" />
+              {t('avatar.openDownloader')}
+              <ExternalLink className="h-4 w-4" />
+            </a>
+            <p className="text-center text-xs text-gray-500">
+              {t(handle ? 'avatar.copyAndOpenHint' : 'avatar.openWithoutUsernameHint')}
+            </p>
+          </div>
           <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-900">
             <ShieldAlert className="mt-0.5 h-4 w-4 flex-none" />
             {t('avatar.thirdPartyNote')}

@@ -114,7 +114,7 @@ Open <http://localhost:3000>. The app creates a Sheet named **IG Friends Databas
 1. Sign in with Google.
 2. Follow or skip the first-use guided tour.
 3. Add a friend with their handle, meeting context, notes and optional reminder.
-4. Upload a photo, or use the built-in guide to download a public profile picture and then upload it.
+4. Upload a photo, or open the IGPorter link in the built-in guide to download a public profile picture first.
 5. Reuse existing tags or create new ones.
 6. Save the permanent Instagram ID when available.
 7. On the dashboard, combine multiple tags to narrow the list.
