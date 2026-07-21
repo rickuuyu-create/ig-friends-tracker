@@ -26,7 +26,7 @@ IG Friends Tracker helps you remember where you met someone, what you discussed,
 - Sort by recently met, follow-up date or name
 - Follow-up reminders and overdue badges
 - Browser-side avatar resizing; uploaded photos are stored in the user's Sheet
-- Built-in guide for obtaining and uploading a permitted profile photo
+- Built-in public-profile photo download guide with manual upload
 - Permanent Instagram numeric ID and searchable username history
 - Duplicate detection by permanent ID, with username fallback
 - Optional bring-your-own Apify token for ID lookup and username verification
@@ -114,7 +114,7 @@ Open <http://localhost:3000>. The app creates a Sheet named **IG Friends Databas
 1. Sign in with Google.
 2. Follow or skip the first-use guided tour.
 3. Add a friend with their handle, meeting context, notes and optional reminder.
-4. Upload a permitted photo or open the built-in photo guide.
+4. Upload a photo, or use the built-in guide to download a public profile picture and then upload it.
 5. Reuse existing tags or create new ones.
 6. Save the permanent Instagram ID when available.
 7. On the dashboard, combine multiple tags to narrow the list.
@@ -123,7 +123,7 @@ Open <http://localhost:3000>. The app creates a Sheet named **IG Friends Databas
 
 Users who want automatic profile lookups can add their own token under **Settings**. This enables ID auto-fetch and username verification. The integration is optional; manual ID lookup remains available.
 
-Instagram scraping can fail temporarily when Instagram changes its protections. Avatar images are not auto-imported because Instagram CDN URLs expire and direct downloading is restricted.
+Instagram scraping can fail temporarily when Instagram changes its protections. Avatar images are not auto-imported because Instagram CDN URLs expire. The photo guide copies the entered username and opens a third-party downloader in a new tab; it never asks for an Instagram password. The external service supports public profiles only and may change or stop working.
 
 ## Commands
 

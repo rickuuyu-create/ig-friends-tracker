@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.1] - 2026-07-22
+
+### Changed
+
+- Replaced the ask-a-friend avatar instructions with a public-profile downloader workflow
+- Added one-click username copying, a direct downloader link and third-party safety warnings
+
 ## [1.1.0] - 2026-07-22
 
 ### Added
