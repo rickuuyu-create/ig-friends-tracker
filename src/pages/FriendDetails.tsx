@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, ExternalLink, Calendar, MapPin, Users, Tag, Trash2, Hash, History, ScanLine } from 'lucide-react';
-import { FriendRecord, fetchFriends, deleteFriend, updateFriend } from '../lib/api';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Calendar, Edit2, ExternalLink, Hash, History, Image as ImageIcon, MapPin, ScanLine, Tag, Trash2, Users } from 'lucide-react';
+import { FriendRecord, deleteFriend, fetchFriends, updateFriend } from '../lib/api';
 import { getAccessToken } from '../lib/firebase';
 import IgAvatar from '../components/IgAvatar';
 import { isDataUrl } from '../lib/image';
 import { previousUsernames } from '../lib/identity';
-import { hasApifyToken, fetchInstagramProfile } from '../lib/apify';
+import { fetchInstagramProfile, hasApifyToken } from '../lib/apify';
+import { parseTags } from '../lib/tags';
+import { useI18n } from '../i18n';
 
 export default function FriendDetails({ spreadsheetId }: { spreadsheetId: string }) {
+  const { t } = useI18n();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [friend, setFriend] = useState<FriendRecord | null>(null);
@@ -18,21 +21,19 @@ export default function FriendDetails({ spreadsheetId }: { spreadsheetId: string
   const [isRechecking, setIsRechecking] = useState(false);
 
   useEffect(() => {
-    const loadData = async () => {
+    (async () => {
       try {
         const token = await getAccessToken();
         if (!token) return;
         const data = await fetchFriends(token, spreadsheetId);
         setAllFriends(data);
-        const f = data.find(x => x.id === id);
-        if (f) setFriend(f);
-      } catch (err) {
-        console.error(err);
+        setFriend(data.find((item) => item.id === id) || null);
+      } catch (error) {
+        console.error(error);
       } finally {
         setIsLoading(false);
       }
-    };
-    loadData();
+    })();
   }, [id, spreadsheetId]);
 
   const handleRecheck = async () => {
@@ -41,243 +42,168 @@ export default function FriendDetails({ spreadsheetId }: { spreadsheetId: string
     try {
       const profile = await fetchInstagramProfile(friend.username);
       if (!profile) {
-        alert(`@${friend.username} wasn't found. They may have changed their username, gone private, or deleted the account.${friend.instagramUserId ? ` This person's saved ID is ${friend.instagramUserId}.` : ''}`);
+        alert(t('details.recheckNotFound', {
+          username: friend.username,
+          id: friend.instagramUserId ? ` ID: ${friend.instagramUserId}.` : '',
+        }));
         return;
       }
       if (friend.instagramUserId && profile.id !== friend.instagramUserId) {
-        alert(`Heads up: @${friend.username} now belongs to a different account (ID ${profile.id}), but this person's ID is ${friend.instagramUserId}. They likely changed their username — edit this friend to update it.`);
+        alert(t('details.recheckIdMismatch', {
+          username: friend.username,
+          savedId: friend.instagramUserId,
+          currentId: profile.id,
+        }));
         return;
       }
       const token = await getAccessToken();
-      if (!token) throw new Error('Not authenticated');
-      const today = new Date().toISOString().split('T')[0];
+      if (!token) throw new Error(t('form.notAuthenticated'));
       const updated: FriendRecord = {
         ...friend,
         instagramUserId: friend.instagramUserId || profile.id,
-        lastCheckedAt: today,
+        lastCheckedAt: new Date().toISOString().split('T')[0],
       };
       await updateFriend(token, spreadsheetId, updated, allFriends);
       setFriend(updated);
-      alert(`✓ Still @${friend.username}. Verified today.`);
-    } catch (err: any) {
-      alert(err?.message || 'Re-check failed.');
+      alert(t('details.recheckVerified', { username: friend.username }));
+    } catch (error: any) {
+      alert(error?.message || t('details.recheckFailed'));
     } finally {
       setIsRechecking(false);
     }
   };
 
   const handleDelete = async () => {
-    const confirmed = window.confirm('Are you sure you want to delete this record? This action cannot be undone.');
-    if (!confirmed || !friend) return;
-
+    if (!friend || !window.confirm(t('details.deleteConfirm'))) return;
     setIsDeleting(true);
     try {
       const token = await getAccessToken();
-      if (!token) throw new Error("Not authenticated");
+      if (!token) throw new Error(t('form.notAuthenticated'));
       await deleteFriend(token, spreadsheetId, friend.id, allFriends);
       navigate('/');
-    } catch (err) {
-      console.error(err);
-      alert('Failed to delete.');
+    } catch (error) {
+      console.error(error);
+      alert(t('details.deleteFailed'));
       setIsDeleting(false);
     }
   };
 
   if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
+    return <div className="flex h-screen items-center justify-center bg-gray-50"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600" /></div>;
   }
 
   if (!friend) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-gray-50 p-4">
-        <p className="text-gray-500 mb-4">Friend not found.</p>
-        <Link to="/" className="text-indigo-600 font-medium">Go back</Link>
+        <p className="mb-4 text-gray-500">{t('details.friendNotFound')}</p>
+        <Link to="/" className="font-medium text-indigo-600">{t('details.goBack')}</Link>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-md mx-auto h-screen flex flex-col bg-gray-50">
-      <div className="bg-white px-4 py-4 border-b border-gray-200 sticky top-0 z-10 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/" className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50"
-            title="Delete"
-          >
-            <Trash2 className="w-5 h-5" />
-          </button>
-          <Link to={`/edit/${friend.id}`} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
-            <Edit2 className="w-5 h-5" />
-          </Link>
-        </div>
-      </div>
+  const oldUsernames = previousUsernames(friend);
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="bg-white p-6 border-b border-gray-200 text-center flex flex-col items-center">
-          <IgAvatar 
-            username={friend.username} 
-            name={friend.name} 
-            customUrl={friend.photoUrl} 
-            className="w-20 h-20 mb-4"
-          />
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">{friend.name || friend.username}</h1>
-          <a 
-            href={`https://instagram.com/${friend.username}`} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-1.5 text-indigo-600 font-medium hover:text-indigo-800 transition-colors bg-indigo-50 px-4 py-2 rounded-full mt-2"
-          >
-            @{friend.username}
-            <ExternalLink className="w-4 h-4" />
+  return (
+    <div className="mx-auto flex h-screen max-w-md flex-col bg-gray-50">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-4">
+        <Link to="/" className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" title={t('common.back')}>
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <div className="flex items-center gap-1">
+          <button onClick={handleDelete} disabled={isDeleting} className="flex h-9 w-9 items-center justify-center rounded-full text-red-500 hover:bg-red-50 disabled:opacity-50" title={t('common.delete')}>
+            <Trash2 className="h-5 w-5" />
+          </button>
+          <Link to={`/edit/${friend.id}`} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" title={t('common.edit')}>
+            <Edit2 className="h-5 w-5" />
+          </Link>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-y-auto">
+        <section className="flex flex-col items-center border-b border-gray-200 bg-white p-6 text-center">
+          <IgAvatar username={friend.username} name={friend.name} customUrl={friend.photoUrl} className="mb-4 h-20 w-20" />
+          <h1 className="mb-1 text-2xl font-bold text-gray-900">{friend.name || friend.username}</h1>
+          <a href={`https://instagram.com/${friend.username}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full bg-indigo-50 px-4 py-2 font-medium text-indigo-600 hover:text-indigo-800">
+            @{friend.username}<ExternalLink className="h-4 w-4" />
           </a>
           {hasApifyToken() && (
-            <button
-              onClick={handleRecheck}
-              disabled={isRechecking}
-              className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors disabled:opacity-50"
-            >
-              {isRechecking ? (
-                <div className="w-3.5 h-3.5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <ScanLine className="w-3.5 h-3.5" />
-              )}
-              {isRechecking ? 'Checking…' : 'Re-check username'}
+            <button onClick={handleRecheck} disabled={isRechecking} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-200 disabled:opacity-50">
+              {isRechecking ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" /> : <ScanLine className="h-3.5 w-3.5" />}
+              {isRechecking ? t('details.checking') : t('details.recheck')}
             </button>
           )}
-        </div>
+        </section>
 
-        <div className="p-4 space-y-4">
-          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Context</h2>
-            
-            {friend.occasion && (
-              <div className="flex items-start gap-3">
-                <Users className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div>
-                  <p className="text-sm text-gray-500 font-medium">Met at</p>
-                  <p className="text-gray-900">{friend.occasion}</p>
-                </div>
-              </div>
-            )}
-            
-            {friend.date && (
-              <div className="flex items-start gap-3">
-                <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div>
-                  <p className="text-sm text-gray-500 font-medium">Date</p>
-                  <p className="text-gray-900">{friend.date}</p>
-                </div>
-              </div>
-            )}
+        <div className="space-y-4 p-4">
+          <section className="space-y-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-bold uppercase text-gray-400">{t('details.context')}</h2>
+            {friend.occasion && <InfoRow icon={Users} label={t('details.metAt')} value={friend.occasion} />}
+            {friend.date && <InfoRow icon={Calendar} label={t('details.date')} value={friend.date} />}
+            {friend.location && <InfoRow icon={MapPin} label={t('details.location')} value={friend.location} />}
+          </section>
 
-            {friend.location && (
-              <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div>
-                  <p className="text-sm text-gray-500 font-medium">Location</p>
-                  <p className="text-gray-900">{friend.location}</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {(friend.tags || friend.notes || friend.photoUrl || friend.reminderDate || friend.instagramUserId || previousUsernames(friend).length > 0) && (
-            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-              <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Details</h2>
-
+          {(friend.tags || friend.notes || friend.photoUrl || friend.reminderDate || friend.instagramUserId || oldUsernames.length > 0) && (
+            <section className="space-y-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+              <h2 className="text-sm font-bold uppercase text-gray-400">{t('details.details')}</h2>
               {friend.instagramUserId && (
-                <div className="flex items-start gap-3">
-                  <Hash className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-gray-500 font-medium">Instagram User ID</p>
-                    <p className="text-gray-900 text-sm">{friend.instagramUserId}</p>
-                    {friend.lastCheckedAt && (
-                      <p className="text-xs text-gray-400 mt-0.5">Last checked {friend.lastCheckedAt}</p>
-                    )}
-                  </div>
-                </div>
+                <InfoRow icon={Hash} label={t('details.instagramId')} value={friend.instagramUserId} hint={friend.lastCheckedAt ? t('details.lastChecked', { date: friend.lastCheckedAt }) : undefined} />
               )}
-
-              {previousUsernames(friend).length > 0 && (
+              {oldUsernames.length > 0 && (
                 <div className="flex items-start gap-3">
-                  <History className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <History className="mt-0.5 h-5 w-5 text-gray-400" />
                   <div>
-                    <p className="text-sm text-gray-500 font-medium mb-1.5">Also known as</p>
+                    <p className="mb-1.5 text-sm font-medium text-gray-500">{t('details.alsoKnown')}</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {previousUsernames(friend).map(u => (
-                        <span key={u} className="inline-flex items-center text-xs font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">
-                          @{u}
-                        </span>
-                      ))}
+                      {oldUsernames.map((username) => <span key={username} className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">@{username}</span>)}
                     </div>
                   </div>
                 </div>
               )}
-              
               {friend.photoUrl && (
                 <div className="flex items-start gap-3">
-                  <div className="mt-0.5 w-5 h-5 flex items-center justify-center text-gray-400">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                  </div>
-                  <div className="overflow-hidden">
-                    <p className="text-sm text-gray-500 font-medium mb-0.5">Avatar Source</p>
-                    {isDataUrl(friend.photoUrl) ? (
-                      <p className="text-xs text-gray-700">Uploaded photo (stored in your sheet)</p>
-                    ) : (
-                      <a href={friend.photoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 truncate block hover:underline">
-                        {friend.photoUrl}
-                      </a>
-                    )}
+                  <ImageIcon className="mt-0.5 h-5 w-5 text-gray-400" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-500">{t('details.avatarSource')}</p>
+                    {isDataUrl(friend.photoUrl)
+                      ? <p className="text-xs text-gray-700">{t('details.uploadedPhoto')}</p>
+                      : <a href={friend.photoUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-indigo-600 hover:underline">{friend.photoUrl}</a>}
                   </div>
                 </div>
               )}
-
               {friend.tags && (
                 <div className="flex items-start gap-3">
-                  <Tag className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <Tag className="mt-0.5 h-5 w-5 text-gray-400" />
                   <div>
-                    <p className="text-sm text-gray-500 font-medium mb-1.5">Tags</p>
+                    <p className="mb-1.5 text-sm font-medium text-gray-500">{t('tags.label')}</p>
                     <div className="flex flex-wrap gap-2">
-                      {friend.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => (
-                        <span key={tag} className="inline-flex items-center text-xs font-medium bg-gray-100 text-gray-700 px-2.5 py-1 rounded-md">
-                          {tag}
-                        </span>
-                      ))}
+                      {parseTags(friend.tags).map((tag) => <span key={tag.toLocaleLowerCase()} className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">{tag}</span>)}
                     </div>
                   </div>
                 </div>
               )}
-
-              {friend.reminderDate && (
-                <div className="flex items-start gap-3">
-                  <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-gray-500 font-medium mb-1.5">Reminder (Follow up)</p>
-                    <p className="text-gray-900">{friend.reminderDate}</p>
-                  </div>
-                </div>
-              )}
-
+              {friend.reminderDate && <InfoRow icon={Calendar} label={t('details.reminder')} value={friend.reminderDate} />}
               {friend.notes && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-sm text-gray-500 font-medium mb-1">Notes</p>
-                  <p className="text-gray-900 whitespace-pre-wrap">{friend.notes}</p>
+                <div className="border-t border-gray-100 pt-4">
+                  <p className="mb-1 text-sm font-medium text-gray-500">{t('details.notes')}</p>
+                  <p className="whitespace-pre-wrap text-gray-900">{friend.notes}</p>
                 </div>
               )}
-            </div>
+            </section>
           )}
         </div>
+      </main>
+    </div>
+  );
+}
+
+function InfoRow({ icon: Icon, label, value, hint }: { icon: typeof Calendar; label: string; value: string; hint?: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon className="mt-0.5 h-5 w-5 text-gray-400" />
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-gray-500">{label}</p>
+        <p className="break-words text-gray-900">{value}</p>
+        {hint && <p className="mt-0.5 text-xs text-gray-400">{hint}</p>}
       </div>
     </div>
   );

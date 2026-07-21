@@ -1,41 +1,46 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Plus, UserCircle, MapPin, Tag, LogOut, RefreshCw, X, Settings } from 'lucide-react';
+import { LogOut, MapPin, Plus, RefreshCw, Search, Settings, Tag, UserCircle } from 'lucide-react';
 import { FriendRecord, fetchFriends } from '../lib/api';
 import { getAccessToken, logout } from '../lib/firebase';
 import IgAvatar from '../components/IgAvatar';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import TagFilterBar from '../components/TagFilterBar';
 import { cn } from '../lib/utils';
+import { collectTagUsage, hasEveryTag, parseTags } from '../lib/tags';
+import { useI18n } from '../i18n';
 
 type SortKey = 'recent' | 'followup' | 'name';
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'recent', label: 'Recent' },
-  { key: 'followup', label: 'Follow-up' },
-  { key: 'name', label: 'Name' },
-];
 
 const parseTime = (value: string): number | null => {
   if (!value) return null;
-  const t = new Date(value).getTime();
-  return isNaN(t) ? null : t;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
 };
 
 export default function Dashboard({ spreadsheetId }: { spreadsheetId: string }) {
+  const { t } = useI18n();
   const [friends, setFriends] = useState<FriendRecord[]>([]);
   const [search, setSearch] = useState('');
-  const [activeTag, setActiveTag] = useState('');
+  const [activeTags, setActiveTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortKey>('recent');
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const tagUsage = useMemo(() => collectTagUsage(friends), [friends]);
+  const sortOptions: { key: SortKey; label: string }[] = [
+    { key: 'recent', label: t('dashboard.recent') },
+    { key: 'followup', label: t('dashboard.followup') },
+    { key: 'name', label: t('dashboard.name') },
+  ];
 
   const loadData = async () => {
     setIsLoading(true);
     try {
       const token = await getAccessToken();
       if (!token) throw new Error('No token');
-      const data = await fetchFriends(token, spreadsheetId);
-      setFriends(data);
-    } catch (err) {
-      console.error(err);
+      setFriends(await fetchFriends(token, spreadsheetId));
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -50,181 +55,169 @@ export default function Dashboard({ spreadsheetId }: { spreadsheetId: string }) 
     window.location.reload();
   };
 
-  const q = search.trim().toLowerCase();
-  const filtered = friends.filter(f => {
-    const matchesSearch = !q ||
-      f.username.toLowerCase().includes(q) ||
-      f.name.toLowerCase().includes(q) ||
-      f.tags.toLowerCase().includes(q) ||
-      f.occasion.toLowerCase().includes(q) ||
-      (f.usernameHistory || '').toLowerCase().includes(q);
-    const matchesTag = !activeTag ||
-      f.tags.split(',').map(t => t.trim().toLowerCase()).includes(activeTag.toLowerCase());
-    return matchesSearch && matchesTag;
+  const toggleTag = (tag: string) => {
+    const key = tag.toLocaleLowerCase();
+    setActiveTags((current) => current.some((item) => item.toLocaleLowerCase() === key)
+      ? current.filter((item) => item.toLocaleLowerCase() !== key)
+      : [...current, tag]);
+  };
+
+  const query = search.trim().toLocaleLowerCase();
+  const filtered = friends.filter((friend) => {
+    const matchesSearch = !query || [
+      friend.username,
+      friend.name,
+      friend.tags,
+      friend.occasion,
+      friend.location,
+      friend.notes,
+      friend.usernameHistory || '',
+    ].some((value) => value.toLocaleLowerCase().includes(query));
+    return matchesSearch && hasEveryTag(friend.tags, activeTags);
   });
 
   const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === 'name') {
-      return (a.name || a.username).localeCompare(b.name || b.username);
-    }
+    if (sortBy === 'name') return (a.name || a.username).localeCompare(b.name || b.username);
     if (sortBy === 'followup') {
-      const ra = parseTime(a.reminderDate || '');
-      const rb = parseTime(b.reminderDate || '');
-      return (ra ?? Infinity) - (rb ?? Infinity);
+      return (parseTime(a.reminderDate || '') ?? Infinity) - (parseTime(b.reminderDate || '') ?? Infinity);
     }
-    // recent: most recently met first; undated friends sink to the bottom.
-    const da = parseTime(a.date);
-    const db = parseTime(b.date);
-    return (db ?? -Infinity) - (da ?? -Infinity);
+    return (parseTime(b.date) ?? -Infinity) - (parseTime(a.date) ?? -Infinity);
   });
 
-  const getFollowUpStatus = (f: FriendRecord) => {
-    if (f.reminderDate) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const reminder = new Date(f.reminderDate);
-      if (isNaN(reminder.getTime())) return null;
-      
-      const diffTime = reminder.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === 0) return "Today";
-      if (diffDays < 0) return `${Math.abs(diffDays)}d late`;
-      return `in ${diffDays}d`;
-    }
-    return null;
+  const getFollowUpStatus = (friend: FriendRecord) => {
+    if (!friend.reminderDate) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const reminder = new Date(friend.reminderDate);
+    if (Number.isNaN(reminder.getTime())) return null;
+    const days = Math.ceil((reminder.getTime() - today.getTime()) / 86400000);
+    if (days === 0) return t('dashboard.today');
+    if (days < 0) return t('dashboard.daysLate', { days: Math.abs(days) });
+    return t('dashboard.inDays', { days });
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen flex flex-col bg-gray-50">
-      <div className="bg-white px-4 py-4 border-b border-gray-200 sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-gray-900">IG Friends</h1>
-          <div className="flex gap-2">
-            <button onClick={loadData} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full" title="Sync">
-              <RefreshCw className="w-5 h-5" />
+    <div className="mx-auto flex h-screen max-w-md flex-col bg-gray-50">
+      <header className="sticky top-0 z-20 border-b border-gray-200 bg-white px-4 py-4">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold text-gray-900">{t('dashboard.title')}</h1>
+          <div className="flex items-center gap-1">
+            <LanguageSwitcher compact />
+            <button onClick={loadData} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" title={t('common.sync')}>
+              <RefreshCw className={cn('h-5 w-5', isLoading && 'animate-spin')} />
             </button>
-            <Link to="/settings" className="p-2 text-gray-500 hover:bg-gray-100 rounded-full" title="Settings">
-              <Settings className="w-5 h-5" />
+            <Link data-tour="settings" to="/settings" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" title={t('common.settings')}>
+              <Settings className="h-5 w-5" />
             </Link>
-            <button onClick={handleLogout} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full" title="Logout">
-              <LogOut className="w-5 h-5" />
+            <button onClick={handleLogout} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" title={t('common.logout')}>
+              <LogOut className="h-5 w-5" />
             </button>
           </div>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+
+        <div className="relative" data-tour="search">
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <input
-            type="text"
-            placeholder="Search by IG, name, occasion, tag..."
+            type="search"
+            placeholder={t('dashboard.search')}
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-100 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-lg transition-all"
+            onChange={(event) => setSearch(event.target.value)}
+            className="w-full rounded-lg border border-transparent bg-gray-100 py-2.5 pl-10 pr-4 text-sm outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200"
           />
         </div>
-        <div className="flex items-center gap-2 mt-3">
-          <div className="flex bg-gray-100 rounded-lg p-0.5">
-            {SORT_OPTIONS.map(opt => (
+
+        <div className="mt-3 space-y-2" data-tour="tag-tools">
+          <div className="flex w-fit rounded-lg bg-gray-100 p-0.5">
+            {sortOptions.map((option) => (
               <button
-                key={opt.key}
-                onClick={() => setSortBy(opt.key)}
+                key={option.key}
+                type="button"
+                onClick={() => setSortBy(option.key)}
                 className={cn(
-                  'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-                  sortBy === opt.key ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  'h-8 rounded-md px-3 text-xs font-medium transition-colors',
+                  sortBy === option.key ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700',
                 )}
               >
-                {opt.label}
+                {option.label}
               </button>
             ))}
           </div>
-          {activeTag && (
-            <button
-              onClick={() => setActiveTag('')}
-              className="flex items-center gap-1 bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md text-xs font-medium hover:bg-indigo-200 transition-colors"
-              title="Clear tag filter"
-            >
-              <Tag className="w-3 h-3" />
-              {activeTag}
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <TagFilterBar tags={tagUsage} selected={activeTags} onToggle={toggleTag} onClear={() => setActiveTags([])} />
         </div>
-      </div>
+      </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <main className="flex-1 space-y-3 overflow-y-auto p-4">
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600" />
           </div>
         ) : sorted.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <UserCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p>No friends found.</p>
-            {(search || activeTag) && <p className="text-sm mt-1">Try a different search or tag.</p>}
+          <div className="py-12 text-center text-gray-500">
+            <UserCircle className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+            <p>{t('dashboard.noFriends')}</p>
+            {(search || activeTags.length > 0) && <p className="mt-1 text-sm">{t('dashboard.tryDifferent')}</p>}
           </div>
-        ) : (
-          sorted.map(f => (
-            <Link to={`/view/${f.id}`} key={f.id} className="block bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                    {f.name || f.username}
-                    {getFollowUpStatus(f) && (
-                      <span className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                        Follow up 
-                        <span className="bg-amber-200 text-amber-900 px-1 rounded text-[9px] lowercase leading-tight">
-                          {getFollowUpStatus(f)}
-                        </span>
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-indigo-600 text-sm font-medium mb-2">@{f.username}</p>
-                </div>
-                <IgAvatar 
-                  username={f.username} 
-                  name={f.name} 
-                  customUrl={f.photoUrl} 
-                  className="w-12 h-12"
-                />
+        ) : sorted.map((friend) => (
+          <article
+            key={friend.id}
+            tabIndex={0}
+            role="link"
+            onClick={() => navigate(`/view/${friend.id}`)}
+            onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && navigate(`/view/${friend.id}`)}
+            className="cursor-pointer rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="flex flex-wrap items-center gap-2 font-semibold text-gray-900">
+                  <span className="truncate">{friend.name || friend.username}</span>
+                  {getFollowUpStatus(friend) && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">
+                      {t('dashboard.followUpBadge')}
+                      <span className="rounded bg-amber-200 px-1 text-[9px] lowercase text-amber-900">{getFollowUpStatus(friend)}</span>
+                    </span>
+                  )}
+                </h2>
+                <p className="mb-2 truncate text-sm font-medium text-indigo-600">@{friend.username}</p>
               </div>
-              <div className="flex flex-col gap-1.5 mt-1">
-                {f.occasion && (
-                  <div className="flex items-center text-xs text-gray-500">
-                    <MapPin className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" />
-                    <span className="truncate">{f.occasion} • {f.date}</span>
-                  </div>
-                )}
-                {f.tags && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {f.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => (
+              <IgAvatar username={friend.username} name={friend.name} customUrl={friend.photoUrl} className="h-12 w-12" />
+            </div>
+            <div className="mt-1 flex flex-col gap-1.5">
+              {(friend.occasion || friend.location || friend.date) && (
+                <div className="flex items-center text-xs text-gray-500">
+                  <MapPin className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">{[friend.occasion || friend.location, friend.date].filter(Boolean).join(' • ')}</span>
+                </div>
+              )}
+              {friend.tags && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {parseTags(friend.tags).map((tag) => {
+                    const active = activeTags.some((item) => item.toLocaleLowerCase() === tag.toLocaleLowerCase());
+                    return (
                       <button
-                        key={tag}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTag(tag); }}
+                        key={tag.toLocaleLowerCase()}
+                        type="button"
+                        onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleTag(tag); }}
                         className={cn(
-                          'inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-md transition-colors',
-                          activeTag.toLowerCase() === tag.toLowerCase()
-                            ? 'bg-indigo-100 text-indigo-700'
-                            : 'bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+                          'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium transition-colors',
+                          active ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600',
                         )}
                       >
-                        <Tag className="w-3 h-3 mr-1" />
-                        {tag}
+                        <Tag className="mr-1 h-3 w-3" />{tag}
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Link>
-          ))
-        )}
-      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </article>
+        ))}
+      </main>
 
-      <div className="p-4 bg-white border-t border-gray-200 sticky bottom-0">
-        <Link to="/add" className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white font-medium py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
-          <Plus className="w-5 h-5" />
-          Add Friend
+      <footer className="sticky bottom-0 border-t border-gray-200 bg-white p-4">
+        <Link data-tour="add-friend" to="/add" className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700">
+          <Plus className="h-5 w-5" />{t('dashboard.addFriend')}
         </Link>
-      </div>
+      </footer>
     </div>
   );
 }

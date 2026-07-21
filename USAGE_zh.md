@@ -1,126 +1,119 @@
-# IG Friends Tracker 中文使用說明
+# IG Friends Tracker 繁體中文使用說明
 
-## 這是什麼？
+IG Friends Tracker 是一個私隱優先的個人人脈筆記工具。它協助你記錄在 Instagram 認識的朋友、認識場合、筆記、標籤和跟進日期。
 
-一個「幫你記住 Instagram 上認識的人」的個人 CRM。在活動上認識新朋友、互加 IG，三週後卻想不起對方是誰？這個 App 幫每個新朋友建立記錄：在哪認識、聊過什麼、什麼時候該跟進。
+所有朋友記錄都存放在**使用者自己的 Google Drive**，App 會自動建立一份名為 `IG Friends Database` 的 Google 試算表。開發者沒有共用資料庫，也看不到使用者的朋友記錄。
 
-**最大特點：資料完全屬於你。** 所有記錄存在**你自己 Google 雲端硬碟**裡一份名為 *IG Friends Database* 的試算表——沒有後端伺服器、沒有第三方資料庫，開發者完全看不到你的資料。
+## 一般使用者如何開始
+
+一般使用者不需要建立 Firebase 專案，也不需要自行啟用 Google API：
+
+1. 開啟 [公開版 App](https://ig-friends-tracker.vercel.app/)。
+2. 在右上角選擇 `EN` 或 `繁中`。
+3. 點擊「使用 Google 登入」。
+4. 同意 App 建立及管理由它自行建立的 Google Drive 檔案。
+5. 第一次登入後，跟隨畫面上的互動教學。
 
 ## 主要功能
 
-| 功能 | 說明 |
-|---|---|
-| Google 登入 | 資料自動同步到你自己的 Google Sheet |
-| 朋友記錄 | 用戶名、真名、認識場合、日期、地點、標籤、筆記、跟進提醒 |
-| 頭像上傳 | 照片在瀏覽器內壓縮後存進試算表，**永不過期** |
-| 永久 ID 錨定 | 記下 Instagram 的數字 ID——對方改用戶名也認得是同一人 |
-| 改名歷史 | 自動記錄曾用名（Also known as @舊名），搜舊名也找得到 |
-| 篩選排序 | 點標籤篩選；按最近認識／待跟進／名字排序 |
-| 待跟進標籤 | 列表直接顯示「Today」「3d late」 |
-| PWA | 手機可「加到主畫面」，像原生 App 一樣開啟 |
-| 選用：Apify 自動查詢 | 貼上你自己的免費 Apify token，一鍵自動抓 ID、偵測改名 |
+### 新增朋友
 
-## 資料夾結構
+點擊首頁底部的「新增朋友」，可記錄：
 
-```
-├── public/              # PWA 圖示、manifest、service worker
-├── src/
-│   ├── components/      # 頭像、上傳欄位、ID 欄位等元件
-│   ├── lib/             # Google Sheets API、Firebase 登入、Apify、圖片壓縮
-│   ├── pages/           # 列表、新增、編輯、詳情、設定、隱私權頁
-│   └── App.tsx          # 路由與登入門檻
-├── vercel.json          # Vercel SPA 路由設定
-└── .env.example         # Firebase 設定範本
-```
+- IG 用戶名稱
+- 真實姓名或備註名稱
+- 頭像
+- Instagram 永久用戶 ID
+- 認識場合、日期及地點
+- 多個標籤
+- 筆記
+- 跟進提醒日期
 
-## 安裝方式（架自己的一份，全程免費）
+### 上傳朋友照片
 
-> **只是想「使用」這個 App？** 如果有人分享了部署好的網址給你，直接打開、用 Google 登入就能用——完全不需要下面的任何設定。以下步驟只給想自己架一份的開發者。
+Instagram 不允許這個純前端 App 直接下載其他人的頭像。請使用朋友同意分享的照片：
 
-**前置需求**：Node.js 18+、一個 Google 帳號。
+1. 在頭像欄旁點「如何取得照片」。
+2. 點按鈕開啟朋友的 Instagram 個人檔案。
+3. 請朋友傳送照片，或在獲得同意後截圖並裁切。
+4. 回到 App 點「上傳照片」。
 
-### 第 1 步：安裝依賴
+照片會在瀏覽器中縮小後才存進 Google 試算表，避免外部圖片網址失效。
 
-```bash
-git clone https://github.com/rickuuyu-create/ig-friends-tracker.git
-cd ig-friends-tracker
-npm install
-```
+### 使用標籤
 
-### 第 2 步：建立自己的 Firebase 專案（免費）
+新增或編輯朋友時：
 
-1. 到 <https://console.firebase.google.com> →「新增專案」
-2. 點網頁圖示 **`</>`** 註冊 Web 應用程式 → 複製 `firebaseConfig` 那六個值
-3. **Authentication → Sign-in method → Google → 啟用**（選一個支援信箱）
-4. 到 Google Cloud Console 啟用兩個 API（**最容易漏的一步**，漏了存檔會失敗）：
-   - [Google Sheets API](https://console.cloud.google.com/apis/library/sheets.googleapis.com)
-   - [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com)
+- 可在輸入框建立新標籤，按 Enter 加入。
+- 可左右滑動「曾經使用的標籤」。
+- 可連續點選多個標籤。
+- 點擊已選標籤可移除。
+- 系統會自動清除重複標籤和多餘空格。
 
-### 第 3 步：填設定
+首頁會顯示最常用的三個標籤。點「更多」可搜尋及選取其他標籤。選擇多個標籤時，只會顯示**同時包含所有已選標籤**的朋友。
 
-```bash
-cp .env.example .env.local
-```
+### Instagram 永久 ID
 
-把第 2 步的六個值填進 `VITE_FIREBASE_*` 欄位。這些是公開的用戶端識別碼、不是機密。
+Instagram 用戶名稱可以更改，舊名稱亦可能被另一個人註冊，因此只保存 username 並不可靠。
 
-### 第 4 步：啟動
+永久數字 ID 不會因改名而改變：
 
-```bash
-npm run dev
-```
+- 點「查找 ID」可使用外部免費工具手動查詢。
+- 如在設定中加入自己的 Apify token，可使用「自動取得」。
+- 編輯 username 時，舊名稱會自動加入「曾用名稱」歷史。
+- 搜尋舊 username 仍能找到同一筆記錄。
 
-開 <http://localhost:3000>，用 Google 登入。第一次存檔時，App 會自動在你的雲端硬碟建立試算表。
+### 語言
 
-### 部署到 Vercel（開放給其他人用）
+登入頁和首頁右上角可切換英文或繁體中文。選擇會保存在瀏覽器中，下次開啟時仍會沿用。
 
-1. 推上 GitHub → 在 Vercel 匯入（自動偵測 Vite）
-2. 在 Vercel 專案設定加入同樣六個 `VITE_FIREBASE_*` 環境變數 → 重新部署
-3. Firebase → Authentication → Settings → Authorized domains → 加上 `你的app.vercel.app`
-4. 要開放任何 Google 帳號登入：到 [Google Auth Platform](https://console.cloud.google.com/auth) 填 Branding（隱私權政策網址填 `https://你的app.vercel.app/privacy`，App 內建這頁）→ Audience → **Publish app**。本 App 只用非敏感的 `drive.file` 權限，不需 Google 審核。
+### 首次使用教學
 
-## 使用流程
+第一次登入會自動顯示聚光式教學，介紹設定、搜尋、多標籤篩選、新增朋友、頭像、永久 ID 和儲存流程。
 
-1. **新增朋友**：填 IG 用戶名（必填），加上認識場合、標籤、筆記、跟進日期
-2. **上傳頭像**：點 Upload Photo 選照片，即時預覽（為何不自動抓 IG 頭像？因為 IG 的圖片網址幾週就過期）
-3. **記下永久 ID**（建議）：點 **Find ID** 免費查出對方的數字 ID 貼進來——之後對方改名也認得
-4. **快速找人**：搜尋任何欄位（含曾用名）、點標籤篩選、切換排序
-5. **手機安裝**：部署後用手機開網址 →「加到主畫面」
+完成或跳過後不會再次自動出現。如需重看，可前往：
 
-### 範例
+`設定 > 功能教學 > 重新播放教學`
 
-> 在「Tech Meetup 2026」認識 @rick_no_rich（Rick），標籤 `hiking, designer`，記下 ID `1234567890`，設定兩週後跟進。
-> 一個月後 Rick 改名成 @rickhhkkd——你編輯記錄更新用戶名，舊名自動存為「Also known as @rick_no_rich」，搜哪個名字都找得到他。
+## 安裝成手機 App
 
-### 選用功能：Apify 自動查詢
+- iPhone / iPad：Safari 分享按鈕 >「加入主畫面」。
+- Android：Chrome 選單 >「安裝應用程式」或「加到主畫面」。
+- 桌面 Chrome / Edge：網址列右側的安裝圖示。
 
-到右上齒輪（Settings）貼上你自己的免費 [Apify token](https://console.apify.com/settings/integrations)，可解鎖：
+## 選用的 Apify 功能
 
-- **Auto-fetch**：新增時一鍵自動抓 ID 和名字
-- **Re-check username**：一鍵確認對方是否改名，蓋上檢查日期
-
-Token 只存在你自己的瀏覽器，查詢從你的瀏覽器直連 Apify，費用算你自己的 Apify 額度（免費額度通常够個人使用）。
+前往「設定」，貼上你自己的 Apify API token，可啟用 ID 自動取得及 username 重新檢查。Token 只存在目前瀏覽器，請求會直接傳送到 Apify，使用量屬於你自己的 Apify 帳戶。
 
 ## 常見問題
 
-**Q：存檔跳「Failed to save」？**
-A：九成是 Google Sheets API / Drive API 沒開（安裝第 2 步第 4 點）。開完等一分鐘，重新整理再試。
+### 為何儲存失敗？
 
-**Q：登入沒反應或彈窗被擋？**
-A：允許瀏覽器彈出視窗；部署後記得把網域加進 Firebase 授權清單。
+如你使用公開版，先登出再登入。自行部署者請確認同一個 Google Cloud 專案已啟用 Google Sheets API 和 Google Drive API。
 
-**Q：開發者看得到我的資料嗎？**
-A：看不到。沒有伺服器、沒有分析追蹤，`drive.file` 權限只允許 App 存取它自己建立的檔案。
+### 開發者能看到我的資料嗎？
 
-**Q：怎麼刪除所有資料？**
-A：到你的雲端硬碟刪掉 *IG Friends Database* 試算表，再到 [myaccount.google.com/permissions](https://myaccount.google.com/permissions) 撤銷授權。
+不能。App 使用 `drive.file` 權限，只能存取它在登入使用者 Drive 中自行建立的檔案。
 
-**Q：Apify 查詢失敗？**
-A：爬蟲類服務會被 Instagram 週期性封鎖，過幾天再試；手動 Find ID 永遠可用。
+### 如何刪除全部資料？
 
-## 注意事項
+1. 在 Google Drive 刪除 `IG Friends Database`。
+2. 前往 [Google 帳戶權限](https://myaccount.google.com/permissions) 撤銷本 App。
 
-- 頭像請用「上傳」而非貼 IG 圖片網址（後者會過期）
-- Instagram 數字 ID 永久不變，是最可靠的身分依據——建議每位朋友都記
-- 試算表就是你的資料庫：可以直接在 Google Sheets 開來看，但**不要改動欄位順序**
-- 本專案 MIT 授權，歡迎 fork 改成自己的版本
+### 多個標籤如何配對？
+
+使用 AND 邏輯。例如同時選 `SFU` 和 `內在關係課程`，只會顯示同時具有兩個標籤的人。
+
+### 為何不能自動下載 Instagram 頭像？
+
+Instagram 會限制直接下載，而且 CDN 網址會過期。App 因此採用手動上傳，讓照片可以可靠地留在使用者自己的資料中。
+
+## 自行部署
+
+開發者請依照英文 [README](README.md) 的 **Run your own copy** 和 **Deploy to Vercel** 章節設定 Firebase、Google APIs 和環境變數。
+
+## 私隱與授權
+
+- 無廣告、無分析、無追蹤。
+- 使用者資料不會傳送到 App 擁有者的伺服器。
+- 原始碼採用 [MIT License](LICENSE)。

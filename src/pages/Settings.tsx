@@ -1,65 +1,75 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Save, Check } from 'lucide-react';
+import { ArrowLeft, Check, ExternalLink, Play, Save } from 'lucide-react';
 import { getApifyToken, setApifyToken } from '../lib/apify';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useI18n } from '../i18n';
+import { useOnboarding } from '../onboarding';
 
 export default function Settings() {
+  const { t } = useI18n();
+  const { startTour } = useOnboarding();
   const [token, setToken] = useState(getApifyToken());
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
     setApifyToken(token);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    window.setTimeout(() => setSaved(false), 2000);
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen flex flex-col bg-gray-50">
-      <div className="bg-white px-4 py-4 border-b border-gray-200 sticky top-0 z-10 flex items-center gap-3">
-        <Link to="/" className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full">
-          <ArrowLeft className="w-5 h-5" />
+    <div className="mx-auto flex h-screen max-w-md flex-col bg-gray-50">
+      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-4">
+        <Link to="/" className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" title={t('common.back')}>
+          <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-xl font-bold text-gray-900">Settings</h1>
-      </div>
+        <h1 className="text-xl font-bold text-gray-900">{t('settings.title')}</h1>
+      </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
+      <main className="flex-1 space-y-5 overflow-y-auto p-4">
+        <section className="space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
           <div>
-            <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">Instagram Auto-Fetch (Optional)</h2>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Paste your own free Apify API token to auto-fetch a friend's permanent
-              Instagram ID when adding them, and to re-check whether they changed their
-              username. Your token is stored only in this browser and never leaves your
-              device — usage is billed to your own Apify account, not the app owner's.
-            </p>
+            <h2 className="text-sm font-bold uppercase text-gray-400">{t('settings.language')}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('settings.languageHint')}</p>
+          </div>
+          <LanguageSwitcher />
+        </section>
+
+        <section className="space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div>
+            <h2 className="text-sm font-bold uppercase text-gray-400">{t('settings.apifyTitle')}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('settings.apifyBody')}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Apify API Token</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('settings.apifyToken')}</label>
             <input
               type="password"
               value={token}
-              onChange={(e) => setToken(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
+              onChange={(event) => setToken(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
               placeholder="apify_api_..."
               autoComplete="off"
             />
-            <a
-              href="https://console.apify.com/settings/integrations"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-1.5 text-xs text-indigo-600 font-medium hover:underline"
-            >
-              Get a free token at apify.com ↗
+            <a href="https://console.apify.com/settings/integrations" target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline">
+              {t('settings.getToken')}<ExternalLink className="h-3 w-3" />
             </a>
           </div>
-          <button
-            onClick={handleSave}
-            className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white font-medium py-2.5 px-4 rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            {saved ? <><Check className="w-4 h-4" /> Saved</> : <><Save className="w-4 h-4" /> Save</>}
+          <button onClick={handleSave} className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white hover:bg-indigo-700">
+            {saved ? <><Check className="h-4 w-4" />{t('settings.saved')}</> : <><Save className="h-4 w-4" />{t('common.save')}</>}
           </button>
-        </div>
-      </div>
+        </section>
+
+        <section className="space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div>
+            <h2 className="text-sm font-bold uppercase text-gray-400">{t('settings.tourTitle')}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('settings.tourBody')}</p>
+          </div>
+          <button onClick={startTour} className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+            <Play className="h-4 w-4" />{t('settings.replayTour')}
+          </button>
+        </section>
+      </main>
     </div>
   );
 }

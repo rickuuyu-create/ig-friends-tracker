@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ExternalLink, Sparkles } from 'lucide-react';
-import { hasApifyToken, fetchInstagramProfile, IgProfile } from '../lib/apify';
+import { hasApifyToken, fetchInstagramProfile, type IgProfile } from '../lib/apify';
+import { useI18n } from '../i18n';
 
 interface InstagramIdFieldProps {
   value: string;
@@ -9,46 +10,52 @@ interface InstagramIdFieldProps {
   onProfile?: (profile: IgProfile) => void;
 }
 
-// Free, no-account tool for turning a username into its permanent numeric ID.
 const LOOKUP_URL = 'https://commentpicker.com/instagram-user-id.php';
 
 export default function InstagramIdField({ value, onChange, username, onProfile }: InstagramIdFieldProps) {
+  const { t } = useI18n();
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState('');
   const canAutoFetch = !!onProfile && hasApifyToken();
 
   const handleAutoFetch = async () => {
-    if (!username?.trim()) { setError('Enter a username first.'); return; }
+    if (!username?.trim()) {
+      setError(t('instagramId.enterUsername'));
+      return;
+    }
     setError('');
     setIsFetching(true);
     try {
       const profile = await fetchInstagramProfile(username);
-      if (!profile) { setError('Profile not found. Check the username.'); return; }
+      if (!profile) {
+        setError(t('instagramId.notFound'));
+        return;
+      }
       onProfile?.(profile);
     } catch (err: any) {
-      setError(err?.message || 'Lookup failed.');
+      setError(err?.message || t('instagramId.lookupFailed'));
     } finally {
       setIsFetching(false);
     }
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <label className="block text-sm font-medium text-gray-700">Instagram User ID (Optional)</label>
+    <div data-tour="instagram-id">
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <label className="block text-sm font-medium text-gray-700">{t('instagramId.label')}</label>
         {canAutoFetch && (
           <button
             type="button"
             onClick={handleAutoFetch}
             disabled={isFetching}
-            className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+            className="flex flex-none items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
           >
             {isFetching ? (
-              <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
             ) : (
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="h-3.5 w-3.5" />
             )}
-            {isFetching ? 'Fetching…' : 'Auto-fetch'}
+            {isFetching ? t('instagramId.fetching') : t('instagramId.autoFetch')}
           </button>
         )}
       </div>
@@ -57,24 +64,21 @@ export default function InstagramIdField({ value, onChange, username, onProfile 
         inputMode="numeric"
         name="instagramUserId"
         value={value}
-        onChange={(e) => onChange(e.target.value.trim())}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
+        onChange={(event) => onChange(event.target.value.trim())}
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
         placeholder="e.g. 1234567890"
       />
-      <div className="flex items-start justify-between gap-3 mt-1.5">
-        <p className="text-xs text-gray-500 leading-tight">
-          {error
-            ? <span className="text-red-600">{error}</span>
-            : 'The permanent ID stays the same even if they change their username.'}
+      <div className="mt-1.5 flex items-start justify-between gap-3">
+        <p className="text-xs leading-tight text-gray-500">
+          {error ? <span className="text-red-600">{error}</span> : t('instagramId.hint')}
         </p>
         <a
           href={LOOKUP_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-0.5 text-xs font-medium text-indigo-600 whitespace-nowrap hover:underline"
+          className="flex flex-none items-center gap-0.5 whitespace-nowrap text-xs font-medium text-indigo-600 hover:underline"
         >
-          Find ID
-          <ExternalLink className="w-3 h-3" />
+          {t('instagramId.find')}<ExternalLink className="h-3 w-3" />
         </a>
       </div>
     </div>

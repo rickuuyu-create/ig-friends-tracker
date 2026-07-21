@@ -1,5 +1,5 @@
 // Bump this to invalidate old caches when the app shell changes.
-const CACHE = 'ig-friends-v1';
+const CACHE = 'ig-friends-v2';
 
 // Precache the app shell so the app opens offline.
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png'];

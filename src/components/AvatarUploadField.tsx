@@ -1,18 +1,23 @@
 import { useRef, useState } from 'react';
-import { Upload, X } from 'lucide-react';
+import { CircleHelp, Upload, X } from 'lucide-react';
 import IgAvatar from './IgAvatar';
 import { compressImageToDataUrl, isDataUrl } from '../lib/image';
+import AvatarHelpDialog from './AvatarHelpDialog';
+import { useI18n } from '../i18n';
 
 interface AvatarUploadFieldProps {
   value: string;
   onChange: (value: string) => void;
   name?: string;
+  username?: string;
 }
 
-export default function AvatarUploadField({ value, onChange, name }: AvatarUploadFieldProps) {
+export default function AvatarUploadField({ value, onChange, name, username }: AvatarUploadFieldProps) {
+  const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -25,15 +30,25 @@ export default function AvatarUploadField({ value, onChange, name }: AvatarUploa
       onChange(await compressImageToDataUrl(file));
     } catch (err) {
       console.error(err);
-      setError('Could not process this image. Please try another file.');
+      setError(t('avatar.error'));
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">Avatar Photo (Optional)</label>
+    <div data-tour="avatar">
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <label className="block text-sm font-medium text-gray-700">{t('avatar.label')}</label>
+        <button
+          type="button"
+          onClick={() => setShowHelp(true)}
+          className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+        >
+          <CircleHelp className="h-3.5 w-3.5" />
+          {t('avatar.help')}
+        </button>
+      </div>
       <div className="flex items-center gap-3">
         <IgAvatar username="" name={name} customUrl={value} className="w-14 h-14 text-xl" />
         <button
@@ -47,14 +62,14 @@ export default function AvatarUploadField({ value, onChange, name }: AvatarUploa
           ) : (
             <Upload className="w-4 h-4" />
           )}
-          Upload Photo
+          {t('avatar.upload')}
         </button>
         {value && (
           <button
             type="button"
             onClick={() => onChange('')}
             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-            title="Remove photo"
+            title={t('common.remove')}
           >
             <X className="w-4 h-4" />
           </button>
@@ -73,16 +88,17 @@ export default function AvatarUploadField({ value, onChange, name }: AvatarUploa
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
-          placeholder="...or paste an image URL (https://...)"
+          placeholder={t('avatar.pasteUrl')}
         />
       )}
       {error ? (
         <p className="mt-1.5 text-xs text-red-600">{error}</p>
       ) : (
         <p className="mt-1.5 text-xs text-gray-500 leading-tight">
-          Uploaded photos are resized and saved into your sheet, so they never expire.
+          {t('avatar.savedHint')}
         </p>
       )}
+      <AvatarHelpDialog open={showHelp} onClose={() => setShowHelp(false)} username={username} />
     </div>
   );
 }
