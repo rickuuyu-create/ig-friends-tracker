@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.0] - 2026-07-22
+
+### Added
+
+- Bilingual landing content below the sign-in card explaining the problem, features, privacy model, steps and FAQ
+- Search engine essentials: robots.txt, sitemap.xml, canonical URL, Open Graph and Twitter card tags, and SoftwareApplication structured data
+- Social sharing preview image
+
+### Changed
+
+- Page title and meta description now describe notes and nicknames for Instagram friends
+
 ## [1.1.2] - 2026-07-22
 
 ### Fixed

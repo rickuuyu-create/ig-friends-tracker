@@ -1,6 +1,6 @@
 {
   "name": "ig-friends-tracker",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "A privacy-first personal CRM for the people you meet on Instagram. Your data lives in your own Google Sheet.",
   "license": "MIT",
   "private": true,
