@@ -19,10 +19,14 @@ export default function LandingContent({ onGetStarted }: { onGetStarted: () => v
 
   const steps = ['landing.step1', 'landing.step2', 'landing.step3'] as const;
   const faqs = [
-    ['landing.q1', 'landing.a1'],
-    ['landing.q2', 'landing.a2'],
-    ['landing.q3', 'landing.a3'],
+    ['landing.q5', 'landing.a5'],
+    ['landing.q6', 'landing.a6'],
+    ['landing.q8', 'landing.a8'],
+    ['landing.q7', 'landing.a7'],
     ['landing.q4', 'landing.a4'],
+    ['landing.q2', 'landing.a2'],
+    ['landing.q1', 'landing.a1'],
+    ['landing.q3', 'landing.a3'],
   ] as const;
 
   return (

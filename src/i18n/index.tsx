@@ -204,6 +204,16 @@ const en = {
   'landing.ctaTitle': 'Start remembering everyone you meet',
   'landing.ctaBody': 'Free, private and open source. Nothing to install.',
   'landing.github': 'View source on GitHub',
+  'landing.q5': 'Can you add private notes about someone on Instagram?',
+  'landing.a5': 'Instagram has no built-in way to save a private note or a nickname about another person. That is exactly what this app adds. Your notes live in your own Google Sheet and the other person never sees them.',
+  'landing.q6': 'Is this the same as Instagram Notes?',
+  'landing.a6': 'No. Instagram Notes are short public status messages that your followers can see and that disappear after 24 hours. These are private notes about other people that only you can read, and they stay until you delete them.',
+  'landing.q7': 'How do I remember where I met someone on Instagram?',
+  'landing.a7': 'Save the occasion, date and location when you add them. Later you can search or tap a tag and the context comes straight back.',
+  'landing.q8': 'Can I give an Instagram follower a nickname or their real name?',
+  'landing.a8': 'Yes. Save their real name or a nickname next to their handle, so you recognise them instantly even when the username tells you nothing.',
+  'meta.title': 'IG Friends Tracker — Private Notes & Nicknames for People You Meet on Instagram',
+  'meta.description': 'Instagram has no way to save private notes about someone. Keep your own notes, nicknames, tags and follow-up reminders for every friend you meet, stored privately in your own Google Sheet. Free and open source.',
 } as const;
 
 type TranslationKey = keyof typeof en;
@@ -326,6 +336,16 @@ const zhTW: Record<TranslationKey, string> = {
   'landing.ctaTitle': '開始記住你認識的每一個人',
   'landing.ctaBody': '免費、私密、開源，不用安裝任何東西。',
   'landing.github': '在 GitHub 查看原始碼',
+  'landing.q5': 'IG 可以幫朋友加備註嗎？',
+  'landing.a5': 'Instagram 本身沒有替其他人加私人備註或備註名的功能。這正是這個 App 補上的：你的備註存在自己的 Google 試算表裡，對方永遠看不到。',
+  'landing.q6': '這跟 IG 的「備註」（便利貼）功能一樣嗎？',
+  'landing.a6': '不一樣。IG 的備註是你自己發出、追蹤者看得到、24 小時後消失的公開短訊息；這裡是你寫給自己、記錄別人的私人筆記，只有你看得到，而且不會消失。',
+  'landing.q7': '怎麼記住是在哪裡認識這個 IG 朋友的？',
+  'landing.a7': '新增朋友時就填上認識的場合、日期和地點。之後用搜尋或點一下標籤，當時的情境立刻回來。',
+  'landing.q8': '可以幫 IG 朋友設暱稱或記下真實姓名嗎？',
+  'landing.a8': '可以。在對方帳號名稱旁邊記下真名或暱稱，就算 username 完全看不出是誰，你也能一眼認出來。',
+  'meta.title': 'IG Friends Tracker — 幫 IG 朋友加備註、暱稱與筆記的免費工具',
+  'meta.description': 'Instagram 沒有替朋友加私人備註的功能。這個免費工具讓你為每位在 IG 認識的人記下備註、暱稱、標籤和跟進提醒，資料存在你自己的 Google 試算表，別人看不到。',
 };
 
 interface I18nContextValue {
@@ -336,12 +356,37 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
+const SITE_URL = 'https://ig-friends-tracker.vercel.app';
+
 const detectLanguage = (): Language => {
+  // ?lang= wins so each language has its own crawlable URL. Search engine
+  // crawlers report an English navigator language, so without this the
+  // Chinese version would never be indexed.
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('lang');
+    if (fromUrl === 'en' || fromUrl === 'zh-TW') return fromUrl;
+  } catch { /* URL may be unavailable in exotic contexts */ }
   try {
     const saved = localStorage.getItem(LANGUAGE_KEY);
     if (saved === 'en' || saved === 'zh-TW') return saved;
   } catch { /* storage can be unavailable in private contexts */ }
   return typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('zh') ? 'zh-TW' : 'en';
+};
+
+// Keep the crawlable head metadata in step with the language being rendered.
+const applyMetadata = (title: string, description: string) => {
+  document.title = title;
+  document.querySelector('meta[name="description"]')?.setAttribute('content', description);
+  document.querySelector('meta[property="og:title"]')?.setAttribute('content', title);
+  document.querySelector('meta[property="og:description"]')?.setAttribute('content', description);
+
+  // The canonical follows the URL, never the visitor's browser language:
+  // "/" is the English address even when a Chinese browser is shown Chinese.
+  const path = window.location.pathname;
+  const isZhUrl = new URLSearchParams(window.location.search).get('lang') === 'zh-TW';
+  const url = `${SITE_URL}${path}${isZhUrl ? '?lang=zh-TW' : ''}`;
+  document.querySelector('link[rel="canonical"]')?.setAttribute('href', url);
+  document.querySelector('meta[property="og:url"]')?.setAttribute('content', url);
 };
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
@@ -353,7 +398,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    document.documentElement.lang = language;
+    document.documentElement.lang = language === 'zh-TW' ? 'zh-Hant' : 'en';
+    const strings = language === 'zh-TW' ? zhTW : en;
+    applyMetadata(strings['meta.title'], strings['meta.description']);
   }, [language]);
 
   const value = useMemo<I18nContextValue>(() => ({
