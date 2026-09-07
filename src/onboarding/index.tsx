@@ -4,20 +4,25 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../i18n';
 
-const COMPLETED_KEY = 'ig_friends_onboarding_v2';
+// Bumped whenever the tour gains a step, so existing users are shown what is new.
+const COMPLETED_KEY = 'ig_friends_onboarding_v3';
 
 interface TourStep {
   route: '/' | '/add';
   target: string;
   title: Parameters<ReturnType<typeof useI18n>['t']>[0];
   body: Parameters<ReturnType<typeof useI18n>['t']>[0];
+  // Steps that point at a friend card only exist once a friend is saved.
+  optional?: boolean;
 }
 
 const STEPS: TourStep[] = [
   { route: '/', target: 'settings', title: 'tour.settingsTitle', body: 'tour.settingsBody' },
   { route: '/', target: 'search', title: 'tour.searchTitle', body: 'tour.searchBody' },
   { route: '/', target: 'tag-tools', title: 'tour.tagsTitle', body: 'tour.tagsBody' },
+  { route: '/', target: 'speak-name', title: 'tour.speakTitle', body: 'tour.speakBody', optional: true },
   { route: '/', target: 'add-friend', title: 'tour.addTitle', body: 'tour.addBody' },
+  { route: '/add', target: 'birthday', title: 'tour.birthdayTitle', body: 'tour.birthdayBody' },
   { route: '/add', target: 'avatar', title: 'tour.avatarTitle', body: 'tour.avatarBody' },
   { route: '/add', target: 'instagram-id', title: 'tour.idTitle', body: 'tour.idBody' },
   { route: '/add', target: 'form-tags', title: 'tour.formTagsTitle', body: 'tour.formTagsBody' },
@@ -35,21 +40,29 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
 
   const startTour = useCallback(() => {
     setStepIndex(0);
+    setDirection(1);
     setActive(true);
     navigate('/');
   }, [navigate]);
 
+  // The first-run tour is offered once per mount. `startTour` is read through a
+  // ref because its identity follows react-router's `navigate`, which changes on
+  // every real route change - as a dependency it restarted the tour from step 1
+  // the moment the tour walked from the dashboard to the add-friend form.
+  const startTourRef = useRef(startTour);
+  startTourRef.current = startTour;
+
   useEffect(() => {
     let completed = false;
     try { completed = localStorage.getItem(COMPLETED_KEY) === 'done'; } catch { /* ignore */ }
-    if (!completed) {
-      const timer = window.setTimeout(startTour, 900);
-      return () => window.clearTimeout(timer);
-    }
-  }, [startTour]);
+    if (completed) return;
+    const timer = window.setTimeout(() => startTourRef.current(), 900);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const finish = useCallback((returnHome: boolean) => {
     setActive(false);
@@ -57,12 +70,25 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     if (returnHome) navigate('/');
   }, [navigate]);
 
-  const goTo = useCallback((nextIndex: number) => {
+  const goTo = useCallback((nextIndex: number, heading: 1 | -1) => {
     const bounded = Math.max(0, Math.min(STEPS.length - 1, nextIndex));
     const nextStep = STEPS[bounded];
+    setDirection(heading);
     setStepIndex(bounded);
     if (window.location.pathname !== nextStep.route) navigate(nextStep.route);
   }, [navigate]);
+
+  const goNext = useCallback(() => {
+    if (stepIndex === STEPS.length - 1) finish(true);
+    else goTo(stepIndex + 1, 1);
+  }, [finish, goTo, stepIndex]);
+
+  // An optional step has nothing to point at yet - the speaker icon needs at
+  // least one saved friend. Carry on in the direction of travel, never stall.
+  const skipMissing = useCallback(() => {
+    if (direction === -1 && stepIndex > 0) goTo(stepIndex - 1, -1);
+    else goNext();
+  }, [direction, goNext, goTo, stepIndex]);
 
   const contextValue = useMemo(() => ({ active, startTour }), [active, startTour]);
 
@@ -72,9 +98,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       {active && (
         <OnboardingTour
           stepIndex={stepIndex}
-          onBack={() => goTo(stepIndex - 1)}
-          onNext={() => stepIndex === STEPS.length - 1 ? finish(true) : goTo(stepIndex + 1)}
+          onBack={() => goTo(stepIndex - 1, -1)}
+          onNext={goNext}
           onSkip={() => finish(false)}
+          onMissing={skipMissing}
         />
       )}
     </OnboardingContext.Provider>
@@ -92,15 +119,18 @@ interface OnboardingTourProps {
   onBack: () => void;
   onNext: () => void;
   onSkip: () => void;
+  onMissing: () => void;
 }
 
-function OnboardingTour({ stepIndex, onBack, onNext, onSkip }: OnboardingTourProps) {
+function OnboardingTour({ stepIndex, onBack, onNext, onSkip, onMissing }: OnboardingTourProps) {
   const { t } = useI18n();
   const location = useLocation();
   const step = STEPS[stepIndex];
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [cardRect, setCardRect] = useState<DOMRect | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const onMissingRef = useRef(onMissing);
+  onMissingRef.current = onMissing;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => event.key === 'Escape' && onSkip();
@@ -119,7 +149,9 @@ function OnboardingTour({ stepIndex, onBack, onNext, onSkip }: OnboardingTourPro
       const element = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
       if (!element) {
         attempts += 1;
-        if (attempts < 40) timer = window.setTimeout(locate, 100);
+        // An optional target gets a shorter wait: it is usually simply absent.
+        if (attempts < (step.optional ? 8 : 40)) timer = window.setTimeout(locate, 100);
+        else if (step.optional) onMissingRef.current();
         return;
       }
       element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });

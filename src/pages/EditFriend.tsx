@@ -12,6 +12,7 @@ import { useI18n } from '../i18n';
 const EMPTY_FRIEND: FriendRecord = {
   id: '', username: '', name: '', occasion: '', date: '', location: '', tags: '', notes: '',
   photoUrl: '', reminderDate: '', instagramUserId: '', originalUsername: '', usernameHistory: '', lastCheckedAt: '',
+  birthday: '',
 };
 
 export default function EditFriend({ spreadsheetId }: { spreadsheetId: string }) {
@@ -101,6 +102,10 @@ export default function EditFriend({ spreadsheetId }: { spreadsheetId: string })
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">{t('form.realName')}</label>
               <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('form.birthday')}</label>
+              <input type="date" name="birthday" value={formData.birthday || ''} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
             </div>
             <AvatarUploadField value={formData.photoUrl} onChange={(photoUrl) => setFormData((current) => ({ ...current, photoUrl }))} name={formData.name || formData.username} username={formData.username} />
             <InstagramIdField

@@ -2,6 +2,15 @@ import { User } from 'firebase/auth';
 
 const SPREADSHEET_NAME = 'IG Friends Database';
 
+// The sheet's column order. New fields are always appended so that sheets
+// written by an older version keep working: a missing column reads back empty.
+const HEADERS = [
+  'ID', 'Username', 'Name', 'Occasion', 'Date', 'Location', 'Tags', 'Notes', 'Photo URL',
+  'Reminder Date', 'Instagram User ID', 'Original Username', 'Username History', 'Last Checked At',
+  'Birthday',
+];
+const LAST_COLUMN = 'O';
+
 export interface FriendRecord {
   id: string;
   username: string;
@@ -18,12 +27,33 @@ export interface FriendRecord {
   originalUsername?: string;
   usernameHistory?: string; // comma-separated, oldest first
   lastCheckedAt?: string;
+  birthday?: string;
 }
 
 const getHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
   'Content-Type': 'application/json',
 });
+
+const writeHeaderRow = async (token: string, spreadsheetId: string): Promise<void> => {
+  await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Friends!A1:${LAST_COLUMN}1?valueInputOption=USER_ENTERED`,
+    { method: 'PUT', headers: getHeaders(token), body: JSON.stringify({ values: [HEADERS] }) }
+  );
+};
+
+// Label the columns this version added but an older sheet has never heard of.
+const ensureHeaderRow = async (token: string, spreadsheetId: string): Promise<void> => {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Friends!A1:${LAST_COLUMN}1`,
+    { headers: getHeaders(token) }
+  );
+  if (!res.ok) return;
+  const data = await res.json();
+  const current: string[] = data.values?.[0] || [];
+  if (current.length >= HEADERS.length) return;
+  await writeHeaderRow(token, spreadsheetId);
+};
 
 export const findOrCreateSpreadsheet = async (token: string): Promise<string> => {
   // 1. Search for existing spreadsheet
@@ -39,7 +69,10 @@ export const findOrCreateSpreadsheet = async (token: string): Promise<string> =>
   
   const searchData = await searchRes.json();
   if (searchData.files && searchData.files.length > 0) {
-    return searchData.files[0].id;
+    const existingId = searchData.files[0].id;
+    // Relabelling an old sheet is cosmetic, so a failure must not block sign-in.
+    await ensureHeaderRow(token, existingId).catch((error) => console.error(error));
+    return existingId;
   }
   
   // 2. Create if not found
@@ -61,23 +94,14 @@ export const findOrCreateSpreadsheet = async (token: string): Promise<string> =>
   const spreadsheetId = createData.spreadsheetId;
   
   // 3. Write headers
-  await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Friends!A1:N1?valueInputOption=USER_ENTERED`,
-    {
-      method: 'PUT',
-      headers: getHeaders(token),
-      body: JSON.stringify({
-        values: [['ID', 'Username', 'Name', 'Occasion', 'Date', 'Location', 'Tags', 'Notes', 'Photo URL', 'Reminder Date', 'Instagram User ID', 'Original Username', 'Username History', 'Last Checked At']],
-      }),
-    }
-  );
+  await writeHeaderRow(token, spreadsheetId);
   
   return spreadsheetId;
 };
 
 export const fetchFriends = async (token: string, spreadsheetId: string): Promise<FriendRecord[]> => {
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Friends!A2:N1000`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Friends!A2:${LAST_COLUMN}1000`,
     { headers: getHeaders(token) }
   );
 
@@ -103,6 +127,7 @@ export const fetchFriends = async (token: string, spreadsheetId: string): Promis
     originalUsername: row[11] || '',
     usernameHistory: row[12] || '',
     lastCheckedAt: row[13] || '',
+    birthday: row[14] || '',
   }));
 };
 
@@ -126,10 +151,11 @@ export const addFriend = async (
     friend.originalUsername || '',
     friend.usernameHistory || '',
     friend.lastCheckedAt || '',
+    friend.birthday || '',
   ]];
 
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Friends!A1:N1:append?valueInputOption=USER_ENTERED`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Friends!A1:${LAST_COLUMN}1:append?valueInputOption=USER_ENTERED`,
     {
       method: 'POST',
       headers: getHeaders(token),
@@ -169,10 +195,11 @@ export const updateFriend = async (
     friend.originalUsername || '',
     friend.usernameHistory || '',
     friend.lastCheckedAt || '',
+    friend.birthday || '',
   ]];
 
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Friends!A${rowIndex}:N${rowIndex}?valueInputOption=USER_ENTERED`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Friends!A${rowIndex}:${LAST_COLUMN}${rowIndex}?valueInputOption=USER_ENTERED`,
     {
       method: 'PUT',
       headers: getHeaders(token),

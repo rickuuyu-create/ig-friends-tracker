@@ -25,6 +25,8 @@ IG Friends Tracker helps you remember where you met someone, what you discussed,
 - Reusable multi-select tag picker when adding or editing a friend
 - Sort by recently met, follow-up date or name
 - Follow-up reminders and overdue badges
+- Optional birthday on every record
+- Speaker button next to each name that reads it aloud, so an unfamiliar name never needs a translator
 - Browser-side avatar resizing; uploaded photos are stored in the user's Sheet
 - Built-in public-profile photo download guide with manual upload
 - Permanent Instagram numeric ID and searchable username history
@@ -113,7 +115,7 @@ Open <http://localhost:3000>. The app creates a Sheet named **IG Friends Databas
 
 1. Sign in with Google.
 2. Follow or skip the first-use guided tour.
-3. Add a friend with their handle, meeting context, notes and optional reminder.
+3. Add a friend with their handle, meeting context, notes, optional birthday and optional reminder.
 4. Upload a photo, or open the IGPorter link in the built-in guide to download a public profile picture first.
 5. Reuse existing tags or create new ones.
 6. Save the permanent Instagram ID when available.

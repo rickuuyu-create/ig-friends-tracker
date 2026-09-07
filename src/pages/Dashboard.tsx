@@ -4,6 +4,7 @@ import { LogOut, MapPin, Plus, RefreshCw, Search, Settings, Tag, UserCircle } fr
 import { FriendRecord, fetchFriends } from '../lib/api';
 import { getAccessToken, logout } from '../lib/firebase';
 import IgAvatar from '../components/IgAvatar';
+import SpeakNameButton from '../components/SpeakNameButton';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import TagFilterBar from '../components/TagFilterBar';
 import { cn } from '../lib/utils';
@@ -157,7 +158,7 @@ export default function Dashboard({ spreadsheetId }: { spreadsheetId: string }) 
             <p>{t('dashboard.noFriends')}</p>
             {(search || activeTags.length > 0) && <p className="mt-1 text-sm">{t('dashboard.tryDifferent')}</p>}
           </div>
-        ) : sorted.map((friend) => (
+        ) : sorted.map((friend, index) => (
           <article
             key={friend.id}
             tabIndex={0}
@@ -170,6 +171,7 @@ export default function Dashboard({ spreadsheetId }: { spreadsheetId: string }) 
               <div className="min-w-0">
                 <h2 className="flex flex-wrap items-center gap-2 font-semibold text-gray-900">
                   <span className="truncate">{friend.name || friend.username}</span>
+                  <SpeakNameButton name={friend.name} username={friend.username} tourId={index === 0 ? 'speak-name' : undefined} />
                   {getFollowUpStatus(friend) && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">
                       {t('dashboard.followUpBadge')}

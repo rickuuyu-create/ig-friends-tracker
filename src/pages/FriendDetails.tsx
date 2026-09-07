@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Calendar, Edit2, ExternalLink, Hash, History, Image as ImageIcon, MapPin, ScanLine, Tag, Trash2, Users } from 'lucide-react';
+import { ArrowLeft, Cake, Calendar, Edit2, ExternalLink, Hash, History, Image as ImageIcon, MapPin, ScanLine, Tag, Trash2, Users } from 'lucide-react';
 import { FriendRecord, deleteFriend, fetchFriends, updateFriend } from '../lib/api';
 import { getAccessToken } from '../lib/firebase';
 import IgAvatar from '../components/IgAvatar';
+import SpeakNameButton from '../components/SpeakNameButton';
 import { isDataUrl } from '../lib/image';
 import { previousUsernames } from '../lib/identity';
 import { fetchInstagramProfile, hasApifyToken } from '../lib/apify';
@@ -122,7 +123,10 @@ export default function FriendDetails({ spreadsheetId }: { spreadsheetId: string
       <main className="flex-1 overflow-y-auto">
         <section className="flex flex-col items-center border-b border-gray-200 bg-white p-6 text-center">
           <IgAvatar username={friend.username} name={friend.name} customUrl={friend.photoUrl} className="mb-4 h-20 w-20" />
-          <h1 className="mb-1 text-2xl font-bold text-gray-900">{friend.name || friend.username}</h1>
+          <div className="mb-1 flex items-center justify-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900">{friend.name || friend.username}</h1>
+            <SpeakNameButton name={friend.name} username={friend.username} className="h-8 w-8" />
+          </div>
           <a href={`https://instagram.com/${friend.username}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full bg-indigo-50 px-4 py-2 font-medium text-indigo-600 hover:text-indigo-800">
             @{friend.username}<ExternalLink className="h-4 w-4" />
           </a>
@@ -142,9 +146,10 @@ export default function FriendDetails({ spreadsheetId }: { spreadsheetId: string
             {friend.location && <InfoRow icon={MapPin} label={t('details.location')} value={friend.location} />}
           </section>
 
-          {(friend.tags || friend.notes || friend.photoUrl || friend.reminderDate || friend.instagramUserId || oldUsernames.length > 0) && (
+          {(friend.tags || friend.notes || friend.photoUrl || friend.reminderDate || friend.instagramUserId || friend.birthday || oldUsernames.length > 0) && (
             <section className="space-y-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
               <h2 className="text-sm font-bold uppercase text-gray-400">{t('details.details')}</h2>
+              {friend.birthday && <InfoRow icon={Cake} label={t('details.birthday')} value={friend.birthday} />}
               {friend.instagramUserId && (
                 <InfoRow icon={Hash} label={t('details.instagramId')} value={friend.instagramUserId} hint={friend.lastCheckedAt ? t('details.lastChecked', { date: friend.lastCheckedAt }) : undefined} />
               )}

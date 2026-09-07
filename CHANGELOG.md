@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.3.0] - 2026-09-07
+
+### Added
+
+- Optional birthday on every friend, stored in a new `Birthday` column and shown on the friend's page
+- Speaker button beside each name on the dashboard and the friend's page that reads the name aloud using the browser's own speech synthesis, so an unfamiliar name no longer has to be pasted into a translator
+- Guided tour steps for both, and support for steps that are skipped when they have nothing to point at yet
+
+### Changed
+
+- Sheets created by an earlier version are relabelled on sign-in so the new column has a header; existing rows and data are untouched
+- The guided tour is offered again so existing users see the two new steps
+
+### Fixed
+
+- The guided tour restarted from step one whenever it moved from the dashboard to the add-friend form, so its last steps were unreachable
+
+
 ## [1.2.0] - 2026-08-02
 
 ### Added
